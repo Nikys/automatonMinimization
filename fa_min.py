@@ -1,14 +1,14 @@
 import inspect, os, sys, subprocess
 
-# "enum" для списку
-# Q - стани, А - алфавіт, Т - переходи, S - початкові стани, F - кінцеві стани
+# "enum" analogue for list
+# Q - states, А - alphabet, Т - transitions, S - initial states, F - final (accept) states
 Q = 0
 A = 1
 T = 2
 S = 3
 F = 4
 
-# Зчитування з файлу
+# Reading from file
 def fa_read(filename):
     fa = [None] * 5
     f = open(filename, 'r')
@@ -27,21 +27,21 @@ def fa_read(filename):
         fa[T][int(t[0])][ord(t[1])-97].append(int(t[2]))
     return fa
 
-# Генерація зображення автомату
+# Automaton's image generation
 def fa_gv(fa, filename, pngname):
-    # Генерація DOT-коду для вільної утиліти graphviz
+    # DOT-file generation for package of open-source tools graphviz
     f = open(filename, 'w')
     f.write('digraph fa {\n')
-    # Опис початкових станів
+    # Definition of initial states
     f.write('{\n')
     f.write('node [shape=circle style=filled]\n')
     f.write('[fillcolor=greenyellow] ')
     for s in fa[S]:
         f.write(str(s) + ' ')
     f.write('\n}\n')
-    # Побудова автомату зліва направо
+    # Building automaton from left to right
     f.write('rankdir=LR;\n')
-    # Кінцеві стани у подвійному колі
+    # Final states placed in double circle
     f.write('node[shape=doublecircle];')
     for i in fa[F]:
         f.write(str(fa[Q][i]) + ';')
@@ -53,15 +53,17 @@ def fa_gv(fa, filename, pngname):
                 f.write('[label=' + str(fa[A][a]) + '];\n')
     f.write('}\n')
     f.close()
-    # Поточна директорія в якій розташована програма
+    # Current directory where program is placed
     currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
-    # Директорія, в якій розташована програма і dot-файл
+    # Linux-folder where dot-tool is placed
     dotdirlinux = '/usr/bin'
+    # Windows-folder will be placed soon
+    # dotdirwindows = ""
 
-    # Генерація зображення у командному рядку з відповідного згенерованого DOT-файлу
+    # Image generation in terminal via dot-tool from generated above dot-file
     os.system('"' + dotdir + '/dot" ' + currentdir + '/' + filename + \
               ' -Tpng -o ' + currentdir + '/' + pngname + '.png')
-    # Запуск зображення
+    # Running image
     resname = currentdir + '/' + pngname + '.png'
     if sys.platform == "win32":
         os.startfile(resname)
@@ -70,7 +72,7 @@ def fa_gv(fa, filename, pngname):
         subprocess.call([opener, resname])
 
 
-# Обернення автомату
+# Automaton reverse
 def fa_rev(fa):
     rfa = [list(fa[Q]), list(fa[A]), [], list(fa[F]), list(fa[S])]
     rfa[T] = [[[] for i in range(0, len(fa[A]))] for j in range(0, len(fa[Q]))]
@@ -81,30 +83,35 @@ def fa_rev(fa):
     return rfa
 
 
-# Детермінізація автомату
+# Automaton determinization
+# For the detailed information see any book, for example
+# "Introduction to Automata Theory, Languages, and Computation"
+# by J.E. Hopcroft, R. Motwani and J.D. Ullman
 def fa_det(fa):
-    # Досяжні з l-ї множини списку множин початкових станів q (процедурна реорганізація "черги")
+	# Set of sets q contains set of initial states
+	# reachable function finds reachable states from l-th set of initial states
+	# thus we have procedure similar to queue but with ability to modify "queue"
+	# Accessible states for l-th set of initial states from set q (reorganization of queue)
     def reachable(q, l):
         t = []
         for a in range(0, len(fa[A])):
             ts = set()
             for i in q[l]:
-                # Об'єднання досяжних за символом a станів автомату (з відповідної множини початкових станів)
+            	# Union of reachable via symbol a states
                 ts |= set(fa[T][i][a])
-            # Якщо жоден стан не досягається, то додаємо порожній список і переходимо до наступного символу
+            # If none of states is reachable then add empty list and proceed to next symbol
             if not ts:
                 t.append([])
                 continue
-            # Перевірка, чи наявна отримана вище об'єднана множина станів у списку q
+            # Check if created set t already exists in "queue" q
             try:
                 i = q.index(ts)
-            # Якщо не наявна, то позначаємо індекс на останню позицію, додаємо множину
+            # If it does not exist then append this set to queue and rename with new last index
             except ValueError:
                 i = len(q)
                 q.append(ts)
             t.append([i])
-        # На виході отримаємо збільшену (можливо) чергу і список переходів за символами для нового елементу
-        # До того ж, в ході процедури нові множини ітеративно перейменовуються, але доступ існує через q
+        # As result we have extended queue and transition list by symbols to new element
         return t
 
     dfa = [[], list(fa[A]), [], [0], []]
@@ -116,7 +123,7 @@ def fa_det(fa):
     return dfa
 
 
-# Алгоритм Бржозовського
+# Brzozowski's minimization algorithm
 def fa_min(fa):
     return fa_det(fa_rev(fa_det(fa_rev(fa))))
 
