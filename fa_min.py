@@ -1,4 +1,7 @@
-import inspect, os, sys, subprocess
+import inspect
+import os
+import sys
+import subprocess
 
 # "enum" analogue for list
 # Q - states, А - alphabet, Т - transitions, S - initial states, F - final (accept) states
@@ -32,7 +35,7 @@ def fa_gv(fa, filename, pngname):
     # DOT-file generation for package of open-source tools graphviz
     f = open(filename, 'w')
     f.write('digraph fa {\n')
-    # Definition of initial states
+    # Description of initial states
     f.write('{\n')
     f.write('node [shape=circle style=filled]\n')
     f.write('[fillcolor=greenyellow] ')
@@ -53,23 +56,47 @@ def fa_gv(fa, filename, pngname):
                 f.write('[label=' + str(fa[A][a]) + '];\n')
     f.write('}\n')
     f.close()
-    # Current directory where program is placed
+    # Location of current directory of this program
     currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
-    # Linux-folder where dot-tool is placed
-    dotdirlinux = '/usr/bin'
-    # Windows-folder will be placed soon
-    # dotdirwindows = ""
+    dotfile, dotapp, resname = "", "", ""
 
-    # Image generation in terminal via dot-tool from generated above dot-file
-    os.system('"' + dotdir + '/dot" ' + currentdir + '/' + filename + \
-              ' -Tpng -o ' + currentdir + '/' + pngname + '.png')
-    # Running image
-    resname = currentdir + '/' + pngname + '.png'
+    # Location of graphviz installation directory on Windows and Linux (MacOS X too, possibly)
     if sys.platform == "win32":
-        os.startfile(resname)
+        import winreg
+        aReg = winreg.ConnectRegistry(None, winreg.HKEY_LOCAL_MACHINE)
+        # See 'alternate registry view'
+        winAccessKey = winreg.KEY_WOW64_64KEY | winreg.KEY_READ
+        aKey = winreg.OpenKey(aReg, r"SOFTWARE\Microsoft\Windows\CurrentVersion\Installer\Folders", 0, winAccessKey)
+        # Unreliable way to receive graphviz 'bin'-directory since graphviz has bad records in registry
+        i = 0
+        while True:
+            try:
+                name, value, type = winreg.EnumValue(aKey, i)
+                if "Graphviz" in name and "bin" in name:
+                    dotdir = name
+                    break
+                i += 1
+            except WindowsError:
+                print("It end's here")
+                break
+        del winreg
+        resname = currentdir + '\\' + pngname + '.png'
+        dotapp = dotdir + 'dot'
+        dotfile = currentdir + '\\' + filename
+        opener = [resname]
     else:
-        opener = "open" if sys.platform == "darwin" else "xdg-open"
-        subprocess.call([opener, resname])
+        resname = currentdir + '/' + pngname + '.png'
+        dotapp = "dot"
+        dotfile = currentdir + '/' + filename
+        if sys.platform == "darwin":
+            opener = ["open", resname]
+        else:
+            opener = ["xdg-open", resname]
+
+    # Image generation via terminal by dot-tool from generated before *.dot-file into *.png-format
+    subprocess.call([dotapp, dotfile, "-Tpng", "-o", resname])
+    # Open image
+    subprocess.call([resname], shell = True)
 
 
 # Automaton reverse
@@ -130,5 +157,5 @@ def fa_min(fa):
 
 fa = fa_read('sample.txt')
 
-fa_gv(fa, 'fa_min.dot', 'StartAutomaton')
+fa_gv(fa, 'fa_min.dot', 'InitialAutomaton')
 fa_gv(fa_min(fa), 'fa_min.dot', 'MinimizedAutomaton')
